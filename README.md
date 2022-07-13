@@ -9,7 +9,7 @@ ICML 2022<br>
 
 
 <p align="center">
-  <img src='teaser.png' width="400"/><br>
+  <img src='teaser.png' width="500"/><br>
   <a href="https://arxiv.org/abs/2206.12984">[arXiv]</a>&emsp;<a href="https://zjia.eng.ucsd.edu/gsl">[website]</a>
 </p>
 
@@ -22,9 +22,9 @@ We show that GSL pushes the envelope of policy learning on several challenging a
 ## Meta-Algorithm
 As a meta-algorithm, GSL can potentially work with any (actor-critic style) policy learning algorithms. 
 We show the pseudocode (extracted from the main paper) as below.
-Notice that GSL is relatively straightforward and easy to adapt to any modern RL frameworks.
+Notice that GSL is relatively straightforward and easy to be adapted to any modern RL frameworks.
 In fact, in our experiments, we adapt GSL for PPO from [PFRL](https://github.com/pfnet/pfrl) on Procgen, PPG from [OpenAI-PPG](https://github.com/openai/phasic-policy-gradient) on Procgen, PPO from [garage](https://github.com/rlworkgroup/garage) for Meta-World, and SAC from [ManiSkill-Learn](https://github.com/haosulab/ManiSkill-Learn) for ManiSkill.
-For better clarity, here in this repo, we only take [garage](https://github.com/rlworkgroup/garage) (which has the most stars among the abovementioned repos) as an example to demonstrate the key steps in adapting the GSL framework.
+For better clarity, here in this repo, we only take [garage](https://github.com/rlworkgroup/garage) (which has the most stars among the abovementioned repos) as an example to demonstrate the key impl steps in the GSL framework.
 
 <p align="center">
   <img src='algorithm.PNG' width="800"/><br>
@@ -35,7 +35,7 @@ For better clarity, here in this repo, we only take [garage](https://github.com/
 The garage repo provides the official PPO impl for experiments in Meta-World.
 In this example, we use PPO and DAPG as the building blocks for GSL.
 The first 8 steps of GSL are straightforward (phase I generalist learning) with little modifications required from the original repo. 
-Starting from step 9, it launches speciaslist training (in parallel) and collect demonstrations in step 12.  
+Starting from step 9, it launches specialist training (in parallel) and demonstration collection in step 12.  
 Normally, a modern RL framework provides an encapsulation for experience collected in an episode (e.g.., used in a replay buffer).
 Here in garage it refers to the `EpisodeBatch` class ([link](https://github.com/rlworkgroup/garage/blob/f056fb8f6226c83d340c869e0d5312d61acf07f0/src/garage/_dtypes.py#L455)).
 When we rollout the policy and store the demos, we utilize such encapsulation and add the following code as a class function to `class VPG` [here](https://github.com/rlworkgroup/garage/blob/f056fb8f6226c83d340c869e0d5312d61acf07f0/src/garage/torch/algos/vpg.py#L17), which is the parent class for the PPO impl:
@@ -57,11 +57,11 @@ When we rollout the policy and store the demos, we utilize such encapsulation an
 ```
 Then we call `trainer.store_demos(...)`, which in turn calls `VPG.store_demos(...)` to collect the demos.
 We provide an example code in `demo_mt10.py` for the MT-10 task in Meta-World.
-Notice that `--task_ids` specifies which the environment variations and since each specialist in this case only works on one variation, you will only specify one task idx here.
+Notice that `--task_ids` specifies which environment variations to use and since each specialist in the case of MT-10 only works on one variation, we will only specify one task idx here per specialist.
 Step 14 is similar to step 12 except that for the generalist we will specify multiple environment variations with `--task_ids`.
 
 ## Phase II Generalist Learning 
-Step 15 is for the phase II generalist learning, where we add the auxiliary reward (DAPG loss) in additional to the PPO losses to fine-tune the pretrained policy on all training environment variations.
+Step 15 is for the phase II generalist learning, where we add the auxiliary reward (DAPG loss) to the PPO training losses to fine-tune the pretrained policy on all training environment variations.
 Specifically, we first modify the `train(...)` function [here](https://github.com/rlworkgroup/garage/blob/f056fb8f6226c83d340c869e0d5312d61acf07f0/src/garage/torch/algos/vpg.py#L208) to filter the demos:
 ```Python
     def train(self, trainer, dapg=False, demo_args=None):
@@ -79,7 +79,7 @@ Specifically, we first modify the `train(...)` function [here](https://github.co
         demo_iter = None
         demo_coeff = None
 
-        # Filter the demos.
+        # Filter the demos (new code here).
         if dapg:
             assert demo_args is not None
             demo_bs, demo_freq, demo_coeff, seed = demo_args  # args for DAPG
@@ -121,11 +121,11 @@ def get_minibatch(batch_size, *inputs):
         for dataset in batch_dataset.iterate():
             yield dataset
 ```
-This `train(...)` function will call `_train_once(...)` [here](https://github.com/rlworkgroup/garage/blob/f056fb8f6226c83d340c869e0d5312d61acf07f0/src/garage/torch/algos/vpg.py#L136), which we modify by changing the function signature:
+This `train(...)` function will call `_train_once(...)` [here](https://github.com/rlworkgroup/garage/blob/f056fb8f6226c83d340c869e0d5312d61acf07f0/src/garage/torch/algos/vpg.py#L136), whose signature is changed as:
 ```Python
     def _train_once(self, itr, eps, demo_iter=None, demo_freq=None, demo_coeff=None):
 ```
-We also modify around [this](https://github.com/rlworkgroup/garage/blob/f056fb8f6226c83d340c869e0d5312d61acf07f0/src/garage/torch/algos/vpg.py#L175) line:
+We also modify [this](https://github.com/rlworkgroup/garage/blob/f056fb8f6226c83d340c869e0d5312d61acf07f0/src/garage/torch/algos/vpg.py#L175) line:
 ```Python
         self._train(obs_flat, actions_flat, rewards_flat,
                 returns_flat, advs_flat, demo_iter, demo_freq, demo_coeff)
@@ -160,7 +160,7 @@ The code above further calls `_train(...)` [here](https://github.com/rlworkgroup
         for dataset in self._vf_optimizer.get_minibatch(obs, returns):
             self._train_value_function(*dataset)
 ```
-Finally, we modify `_train_policy(...)` that includes the DAPG loss (an adapted version, see details in the paper):
+Moreover, we modify `_train_policy(...)` that includes the DAPG loss (an adapted version, see details in the paper):
 ```Python
     def _train_policy(self, obs, actions, rewards, advantages, demo_obs, demo_actions, demo_coeff, max_adv):
         r"""Train the policy.
@@ -190,9 +190,9 @@ Finally, we modify `_train_policy(...)` that includes the DAPG loss (an adapted 
 
         return loss
 ```
-One last step before actual execution of the phase II generalist learning, we need to modify the trainer [here](https://github.com/rlworkgroup/garage/blob/f056fb8f6226c83d340c869e0d5312d61acf07f0/src/garage/trainer.py#L497) to pass the args for DAPG:
+One last step before actual execution of the phase II generalist learning is to modify the trainer [here](https://github.com/rlworkgroup/garage/blob/f056fb8f6226c83d340c869e0d5312d61acf07f0/src/garage/trainer.py#L497) to pass the args for DAPG:
 ```Python
         average_return = self._algo.train(self, dapg, demo_args)
 ```
-Then, we provide an example code in `fine_tune_mt10.py` for launching the fine-tuning process for MT-10 in Meta-World.
+Finally, we provide an example code in `fine_tune_mt10.py` for launching the fine-tuning process for MT-10 in Meta-World.
 
