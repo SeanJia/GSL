@@ -19,6 +19,7 @@ In contrast, an agent trained only on a few variations (a **specialist**) can of
 GSL is an effort to have the best of both worlds by combining generalist and specialist learning in a well-principled three-stage framework. 
 We show that GSL pushes the envelope of policy learning on several challenging and popular benchmarks including [Procgen](https://openai.com/blog/procgen-benchmark/), [Meta-World](https://meta-world.github.io/) and [ManiSkill](https://sapien.ucsd.edu/challenges/maniskill2021/).
 
+## Meta-Algorithm
 As a meta-algorithm, GSL can potentially work with any (actor-critic style) policy learning algorithms. 
 We show the pseudocode (extracted from the main paper) as below.
 Notice that GSL is relatively straightforward and easy to adapt to any modern RL frameworks.
@@ -30,6 +31,7 @@ For better clarity, here in this repo, we only take [garage](https://github.com/
   Pseudocode of GSL
 </p>
 
+## Collect Demonstrations
 The garage repo provides the official PPO impl for experiments in Meta-World.
 In this example, we use PPO and DAPG as the building blocks for GSL.
 The first 8 steps of GSL are straightforward (phase I generalist learning) with little modifications required from the original repo. 
@@ -58,6 +60,7 @@ We provide an example code in `demo_mt10.py` for the MT-10 task in Meta-World.
 Notice that `--task_ids` specifies which the environment variations and since each specialist in this case only works on one variation, you will only specify one task idx here.
 Step 14 is similar to step 12 except that for the generalist we will specify multiple environment variations with `--task_ids`.
 
+## Phase II Generalist Learning 
 Step 15 is for the phase II generalist learning, where we add the auxiliary reward (DAPG loss) in additional to the PPO losses to fine-tune the pretrained policy on all training environment variations.
 Specifically, we first modify the `train(...)` function [here](https://github.com/rlworkgroup/garage/blob/f056fb8f6226c83d340c869e0d5312d61acf07f0/src/garage/torch/algos/vpg.py#L208) to filter the demos:
 ```Python
