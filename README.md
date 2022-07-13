@@ -187,4 +187,9 @@ Finally, we modify `_train_policy(...)` that includes the DAPG loss (an adapted 
 
         return loss
 ```
+One last step before actual execution of the phase II generalist learning, we need to modify the trainer [here](https://github.com/rlworkgroup/garage/blob/f056fb8f6226c83d340c869e0d5312d61acf07f0/src/garage/trainer.py#L497) to pass the args for DAPG:
+```Python
+        average_return = self._algo.train(self, dapg, demo_args)
+```
+Then, we provide an example code in `fine_tune_mt10.py` for launching the fine-tuning process for MT-10 in Meta-World.
 
